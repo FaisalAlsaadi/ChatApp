@@ -1,0 +1,42 @@
+# Miscellaneous
+.DS_Store
+*.log
+*.swp
+Thumbs.db
+
+# IDE/Editor
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Flutter/Dart/Pub
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+**/ios/Pods/
+**/ios/.generated/
+**/ios/Flutter/Flutter.podspec
+.metadata
+.packages
+**/app.*.symbols
+**/app.*.map.json
+**/Generated.xcconfig
+
+# Android
+**/android/**/gradle-wrapper.jar
+**/android/local.properties
+**/android/.gradle/
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# iOS
+**/ios/Flutter/.last_build_id
+**/ios/.symlinks/
+**/ios/Podfile.lock
