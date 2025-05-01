@@ -10,4 +10,8 @@ For a more detailed explanation of the project please refer to the report file (
 
 FOR TESTING ON ANDROID QUICKLY:
 
-Please download the APK file in the root directory (app-release.apk) and install it on an android device or emulator.
+Please download the APK file located in the link and install it on an android device or emulator. 
+
+https://drive.google.com/file/d/12LdSd7zE8WimUaPZGhSDP0JB4mJkTO0p/view?usp=drive_link 
+
+
