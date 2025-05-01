@@ -1,4 +1,4 @@
-[![ChatApp: Secure Messaging Application](https://img.youtube.com/vi/FlR5pIQNg3c/maxresdefault.jpg)](https://youtu.be/FlR5pIQNg3c)
+[![ChatApp: Secure Messaging Application](https://i.ibb.co/bjxm09JB/eee.png)](https://youtu.be/FlR5pIQNg3c)
 
 Cross-platform instant messaging application developed as a computer science graduation project built using Flutter.
 
@@ -8,7 +8,7 @@ Features a unique and innovative SafeSpace feature for self-deleting messages.
 
 Performant application with 60FPS maintained throughout usage.
 
-For a more detailed explanation of the project please refer to the report file (Report.docx) and the PPTX presentation (presentation.pptx), as well as the above presentation video.
+For a more detailed explanation of the project please refer to the report file (Report.docx) and the PPTX presentation (presentation.pptx), as well as the above presentation video by clicking the picture.
 
 FOR TESTING ON ANDROID QUICKLY:
 
