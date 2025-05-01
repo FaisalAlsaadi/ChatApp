@@ -1,3 +1,5 @@
+[![ChatApp: Secure Messaging Application](https://img.youtube.com/vi/FlR5pIQNg3c/maxresdefault.jpg)](https://youtu.be/FlR5pIQNg3c)
+
 Cross-platform instant messaging application developed as a computer science graduation project built using Flutter.
 
 Uses AES end-to-end encryption. 
