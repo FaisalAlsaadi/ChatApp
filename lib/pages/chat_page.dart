@@ -1,206 +1,272 @@
 import 'package:chatapp/chat_services/chat_services.dart';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:chatapp/services/auth_service.dart';
+import 'package:chatapp/services/encryption_service.dart';
 import 'package:chatapp/components/chat_bubble.dart';
 import 'package:chatapp/components/my_textfield.dart';
-import 'package:chatapp/services/auth_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
 class ChatPage extends StatefulWidget {
-  ChatPage({
-    super.key,
-    required this.receiverEmail,
-    required this.receiverID,
-  });
   final String receiverEmail;
   final String receiverID;
 
+  const ChatPage({
+    Key? key,
+    required this.receiverEmail,
+    required this.receiverID,
+  }) : super(key: key);
+
   @override
-  State<ChatPage> createState() => _ChatPageState();
+  _ChatPageState createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
-  //text controllers
-  final TextEditingController _messageController =
-      TextEditingController();
-
-  // chat and auth services
-  final ChatServices _chatServices = ChatServices();
-  final AuthService _authService = AuthService();
-
-  //for textfield focus
-  FocusNode myFocusNode = FocusNode();
+class _ChatPageState extends State<ChatPage>
+    with WidgetsBindingObserver {
+  final _messageController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _focusNode = FocusNode();
+  final _chatServices = ChatServices();
+  final _authService = AuthService();
+  late final String _chatRoomID;
+  final _viewedSafeMessages = <String>{};
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final currentUser = _authService.getCurrentUser();
+    _chatRoomID = _chatServices.getChatRoomID(
+      currentUser!.uid,
+      widget.receiverID,
+    );
 
-    //add listener
-    myFocusNode.addListener(() {
-      if (myFocusNode.hasFocus) {
-        //cause a delay so keyboard shows up
-        // then the amount of remaining space will be calculated
-        // then auto scroll down
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus) {
         Future.delayed(
           const Duration(milliseconds: 500),
-          () => scrollDown(),
+          _scrollToBottom,
         );
       }
     });
 
-    //wait for listview to be built then autoscroll down
-    Future.delayed(
-      const Duration(milliseconds: 500),
-      () => scrollDown(),
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollToBottom(),
     );
   }
 
   @override
   void dispose() {
-    myFocusNode.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _processSafeMessages();
+    _focusNode.dispose();
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  //scroll controller
-  final ScrollController _scrollController =
-      ScrollController();
-  void scrollDown() {
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(seconds: 1),
-      curve: Curves.fastOutSlowIn,
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _processSafeMessages();
+    }
+  }
+
+  Future<void> _processSafeMessages() async {
+    for (final msgId in _viewedSafeMessages) {
+      await _chatServices.markMessageAsViewed(
+        msgId,
+        _chatRoomID,
+      );
+    }
+    _viewedSafeMessages.clear();
+    await _chatServices.deleteViewedSafeSpaceMessages(
+      _chatRoomID,
     );
   }
 
-  //send message
-  void sendMessage() async {
-    // if textfield isn't empty
-    if (_messageController.text.isNotEmpty) {
-      //send message
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    try {
       await _chatServices.sendMessage(
         widget.receiverID,
-        _messageController.text,
+        text,
       );
-
-      //clear text controller
       _messageController.clear();
+      _scrollToBottom();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to send message: ${e.toString()}',
+          ),
+        ),
+      );
     }
-    scrollDown();
+  }
+
+  Future<void> _toggleReaction(
+    String emoji,
+    String messageID,
+  ) async {
+    await _chatServices.toggleReaction(
+      messageID,
+      _chatRoomID,
+      emoji,
+    );
+  }
+
+  Future<void> _toggleSafeSpace(String messageID) async {
+    await _chatServices.toggleSafeSpace(
+      messageID,
+      _chatRoomID,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUserID = _authService.getCurrentUser()!.uid;
+
     return Scaffold(
       appBar: AppBar(title: Text(widget.receiverEmail)),
       body: Column(
         children: [
-          //display all messages
-          Expanded(child: _buildMessageList()),
-
-          //display user input
-          _buildUserInput(),
-        ],
-      ),
-    );
-  }
-
-  //build message list
-  Widget _buildMessageList() {
-    String senderID = _authService.getCurrentUser()!.uid;
-    return StreamBuilder(
-      stream: _chatServices.getMessages(
-        widget.receiverID,
-        senderID,
-      ),
-      builder: (context, snapshot) {
-        //errors
-        if (snapshot.hasError) {
-          return const Text("Error");
-        }
-
-        // loading
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
-          return const Text("Loading");
-        }
-        // return listview
-
-        return ListView(
-          controller: _scrollController,
-          children:
-              snapshot.data!.docs
-                  .map((doc) => _buildMessageItem(doc))
-                  .toList(),
-        );
-      },
-    );
-  }
-
-  // build message item
-  Widget _buildMessageItem(DocumentSnapshot doc) {
-    Map<String, dynamic> data =
-        doc.data() as Map<String, dynamic>;
-
-    // is current user
-    bool isCurrentUser =
-        data['senderID'] ==
-        _authService.getCurrentUser()!.uid;
-
-    var alignment =
-        isCurrentUser
-            ? Alignment.centerRight
-            : Alignment.centerLeft;
-
-    //align message to the right if sender/ receiver left
-
-    return Container(
-      alignment: alignment,
-      child: Column(
-        crossAxisAlignment:
-            isCurrentUser
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
-        children: [
-          ChatBubble(
-            message: data["message"],
-            isCurrentUser: isCurrentUser,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // msg input
-  Widget _buildUserInput() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 50.0),
-      child: Row(
-        children: [
-          //textfield should take most of the space
           Expanded(
-            child: MyTextfield(
-              hintText: "Type a message",
-              controller: _messageController,
-              focusNode: myFocusNode,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _chatServices.getMessages(
+                currentUserID,
+                widget.receiverID,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text('Error loading messages'),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (ctx, i) => _buildMessageItem(
+                    snapshot.data!.docs[i],
+                    currentUserID,
+                  ),
+                );
+              },
             ),
           ),
+          _buildInputArea(),
+        ],
+      ),
+    );
+  }
 
-          //send button
-          Container(
-            decoration: const BoxDecoration(
-              color: Colors.green,
-              shape: BoxShape.circle,
-            ),
-            margin: EdgeInsets.only(right: 25),
-            child: IconButton(
-              onPressed: sendMessage,
-              icon: const Icon(
-                Icons.arrow_upward,
-                color: Colors.white,
+  Widget _buildMessageItem(
+    DocumentSnapshot doc,
+    String currentUserID,
+  ) {
+    try {
+      final data = doc.data() as Map<String, dynamic>;
+      final messageID = doc.id;
+      final senderID = data['senderID'] as String;
+      final isCurrentUser = senderID == currentUserID;
+      final isSafeSpace = data['isSafeSpace'] as bool? ?? false;
+
+      if (isSafeSpace && !isCurrentUser) {
+        _viewedSafeMessages.add(messageID);
+      }
+
+      final rawReactions = data['reactions'] as Map<String, dynamic>?;
+      final reactions = rawReactions?.map(
+        (emoji, users) => MapEntry(
+          emoji,
+          List<String>.from(users as List<dynamic>),
+        ),
+      ) ?? {};
+
+      // Decrypt the message
+      String message;
+      try {
+        final encryptedMessage = data['message'] as String;
+        
+        // Pass the sender ID for proper decryption
+        final decryptedMessage = E2EEncryptionService.decryptMessage(
+          encryptedMessage,
+          senderID,
+        );
+        
+        message = decryptedMessage ?? '[Could not decrypt message]';
+        
+      } catch (e) {
+        print('[ChatPage] Error decrypting message: $e');
+        message = '[Error: unable to decrypt message]';
+      }
+
+      return Align(
+        alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+        child: ChatBubble(
+          message: message,
+          isCurrentUser: isCurrentUser,
+          messageID: messageID,
+          reactions: reactions,
+          onReactionTapped: _toggleReaction,
+          onToggleSafeSpace: _toggleSafeSpace,
+          isSafeSpace: isSafeSpace,
+          currentUserID: currentUserID,
+        ),
+      );
+    } catch (e) {
+      print('[ChatPage] Error building message item: $e');
+      return Text('Error displaying message: $e');
+    }
+  }
+
+  Widget _buildInputArea() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: MyTextfield(
+                hintText: 'Type a message',
+                controller: _messageController,
+                focusNode: _focusNode,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            CircleAvatar(
+              backgroundColor: Colors.green,
+              child: IconButton(
+                icon: const Icon(
+                  Icons.send,
+                  color: Colors.white,
+                ),
+                onPressed: _sendMessage,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

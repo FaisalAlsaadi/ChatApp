@@ -58,7 +58,7 @@ class LoginPage extends StatelessWidget {
               "Welcome back!",
               style: TextStyle(
                 color:
-                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.onSurface,
                 fontSize: 16,
               ),
             ),
