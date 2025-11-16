@@ -1,4 +1,4 @@
-[![Video demo: Secure Messaging Chat Application](https://youtu.be/FlR5pIQNg3c)
+![Video demo: Secure Messaging Chat Application](https://youtu.be/FlR5pIQNg3c)
 
 Cross-platform instant messaging application developed as a computer science graduation project built using Flutter.
 
