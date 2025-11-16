@@ -1,4 +1,4 @@
-[![ChatApp: Secure Messaging Application](https://i.ibb.co/bjxm09JB/eee.png)](https://youtu.be/FlR5pIQNg3c)
+[![Video demo: Secure Messaging Chat Application](https://i.ibb.co/bjxm09JB/eee.png)](https://youtu.be/FlR5pIQNg3c)
 
 Cross-platform instant messaging application developed as a computer science graduation project built using Flutter.
 
